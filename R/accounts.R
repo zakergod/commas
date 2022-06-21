@@ -20,7 +20,8 @@ name_google <- credentals[["GNAME"]]
 # paths ----
 accounts <- "/ver1/accounts"
 sum_accounts <- "/ver1/accounts/summary"
-pie_chart <- "pie_chart_data"
+trade_entities <- "active_trading_entities"
+bots <- # "/ver1/bots"
 
 # utils ----
 time_local <- "Europe/Moscow"
@@ -81,7 +82,19 @@ to_df <- \(resp, is_nested = TRUE){
 get_account_items <- \(.id, .rel_path, .method){
   path <- glue("/ver1/accounts/{.id}/{.rel_path}")
   resp <- get_json(path, .method)
-  result <- to_df(resp)
+  result <- to_df(resp) |>
+    mutate(id = .id)
+
+  Sys.sleep(delay)
+  result
+}
+
+# get bot items ----
+get_bot_items <- \(.id, .method){
+  path <- glue("/ver1/bots/stats?account_id={.id}")
+  resp <- get_json(path, .method)
+  result <- to_df(resp$profits_in_usd, FALSE) |>
+    mutate(id = .id)
 
   Sys.sleep(delay)
   result
@@ -97,23 +110,32 @@ resp_sum <- get_json(sum_accounts, "GET")
 summary_acc <- to_df(resp_sum, FALSE) |>
   to_wider()
 
-
 acc_sum <- summary_acc |>
   add_row(accounts, .before = 2) |>
-  mutate(dt_load = as.character(now(tzone = time_local)))
+  select(id, name, usd_amount, btc_amount)
 
-# get pie charts ----
+# get trade entities ----
+# unique ids
 id_accounts <- unique(accounts$id)
 
-all_pies <- map_df(id_accounts, \(x) get_account_items(x, pie_chart, "POST"))
-pie_chart_data <- to_wider(all_pies)
+all_trade_entities <- map_df(id_accounts, \(x) get_account_items(x, trade_entities, "GET"))
+trade_entities_data <- all_trade_entities |>
+  to_wider() |>
+  select(id, active_deals_count)
 
-acc <- accounts |>
-  select(id, name) |>
-  rename(account_name = name)
+Sys.sleep(delay)
+# get bots stats ----
+all_bots_stats <- map_df(id_accounts, \(x) get_bot_items(x, "GET"))
+bots_stats_data <- all_bots_stats |>
+  select(id, overall_usd_profit, active_deals_usd_profit, today_usd_profit) |>
+  rename_with(.cols = -id, .fn = \(x) paste0(x, "_bots"))
 
-pie_acc <- acc |>
-  left_join(pie_chart_data, by = c("id" = "account_id")) |>
+
+### join all ----
+all_results <- acc_sum |>
+  left_join(trade_entities_data, by = "id") |>
+  left_join(bots_stats_data, by = "id") |>
+  mutate(active_deals_count = as.numeric(active_deals_count)) |>
   mutate(dt_load = as.character(now(tzone = time_local)))
 
 ### auth ----
@@ -124,13 +146,7 @@ gs4_auth(path = name_google)
 
 # write to table ----
 write_sheet(
-  pie_acc,
-  link,
-  "Pie charts"
-)
-
-write_sheet(
-  acc_sum,
+  all_results,
   link,
   "Accounts"
 )
