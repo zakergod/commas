@@ -8,9 +8,10 @@ library(purrr)
 library(glue)
 library(googlesheets4)
 library(lubridate)
+library(jsonlite)
 
 # credentals ----
-credentals <- jsonlite::fromJSON(Sys.getenv("credentals"))
+credentals <- fromJSON(Sys.getenv("credentals"))
 auth_google <- Sys.getenv("GKEY")
 link <- credentals[["LINK_ACC"]]
 secret_key <- credentals[["SECRET"]]
@@ -21,11 +22,12 @@ name_google <- credentals[["GNAME"]]
 accounts <- "/ver1/accounts"
 sum_accounts <- "/ver1/accounts/summary"
 trade_entities <- "active_trading_entities"
-bots <- # "/ver1/bots"
+deals <- "/ver1/deals?limit=1000"
 
 # utils ----
 time_local <- "Europe/Moscow"
 delay <- 3
+now_date <- now(tzone = time_local)
 
 # functions ----
 # get json responce ----
@@ -103,16 +105,15 @@ get_bot_items <- \(.id, .method){
 # get accounts ----
 resp_acc <- get_json(accounts, "GET")
 accounts <- to_df(resp_acc) |>
-  to_wider()
+  to_wider() |>
+  select(id, name, usd_amount, btc_amount)
 
 # get summary accounts ----
 resp_sum <- get_json(sum_accounts, "GET")
 summary_acc <- to_df(resp_sum, FALSE) |>
-  to_wider()
-
-acc_sum <- summary_acc |>
-  add_row(accounts, .before = 2) |>
+  to_wider() |>
   select(id, name, usd_amount, btc_amount)
+
 
 # get trade entities ----
 # unique ids
@@ -130,13 +131,69 @@ bots_stats_data <- all_bots_stats |>
   select(id, overall_usd_profit, active_deals_usd_profit, today_usd_profit) |>
   rename_with(.cols = -id, .fn = \(x) paste0(x, "_bots"))
 
+Sys.sleep(delay)
+# get deals stat----
+resp_deals <- get_json(deals, "GET")
+deals_data <- resp_deals |>
+  to_df() |>
+  select(account_id, closed_at, usd_final_profit) |>
+  mutate(
+    closed_at = as_datetime(closed_at),
+    usd_final_profit = as.numeric(usd_final_profit),
+    account_id = as.character(account_id)
+  ) |>
+  rename(id = account_id) |>
+  filter(!is.na(closed_at)) |>
+  arrange(id, desc(closed_at))
+
+last_7d_profit <- deals_data |>
+  mutate(week = floor_date(closed_at, "week") + days(1)) |>
+  filter(week == max(.data$week)) |>
+  filter(closed_at >= week) |>
+  group_by(id, week) |>
+  summarise(last_7d_profit = sum(usd_final_profit)) |>
+  ungroup() |>
+  select(-week)
+
+last_30d_profit <- deals_data |>
+  group_by(id) |>
+  filter(between(closed_at, now_date - days(30), now_date)) |>
+  summarise(last_30d_profit = sum(usd_final_profit))
+
+this_month_profit <- deals_data |>
+  mutate(month = floor_date(closed_at, "month")) |>
+  group_by(id, month) |>
+  summarise(this_month_profit = sum(usd_final_profit)) |>
+  ungroup() |>
+  filter(month == max(.data$month)) |>
+  select(-month)
 
 ### join all ----
-all_results <- acc_sum |>
+stats_acc <- accounts |>
   left_join(trade_entities_data, by = "id") |>
   left_join(bots_stats_data, by = "id") |>
-  mutate(active_deals_count = as.numeric(active_deals_count)) |>
-  mutate(dt_load = as.character(now(tzone = time_local)))
+  left_join(last_7d_profit, by = "id") |>
+  left_join(last_30d_profit, by = "id") |>
+  left_join(this_month_profit, by = "id") |>
+  mutate(
+    active_deals_count = as.numeric(active_deals_count),
+    overall_usd_profit_bots = as.numeric(overall_usd_profit_bots),
+    active_deals_usd_profit_bots = as.numeric(active_deals_usd_profit_bots),
+    today_usd_profit_bots = as.numeric(today_usd_profit_bots),
+    last_7d_profit = ifelse(is.na(last_7d_profit), 0, last_7d_profit),
+    last_30d_profit = ifelse(is.na(last_30d_profit), 0, last_30d_profit),
+    this_month_profit = ifelse(is.na(this_month_profit), 0, this_month_profit)
+  )
+
+# summary stats
+summary_stat <- stats_acc |>
+  select(where(is.numeric)) |>
+  summarise(across(.fns = sum))
+
+all_results <- summary_acc |>
+  bind_cols(summary_stat) |>
+  add_row(stats_acc, .before = 2) |>
+  mutate(dt_load = as.character(now_date))
 
 ### auth ----
 file_con <- file(name_google)
