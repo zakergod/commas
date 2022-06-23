@@ -151,19 +151,19 @@ last_7d_profit <- deals_data |>
   filter(week == max(.data$week)) |>
   filter(closed_at >= week) |>
   group_by(id, week) |>
-  summarise(last_7d_profit = sum(usd_final_profit)) |>
+  summarise(last_7d_usd_profit = sum(usd_final_profit)) |>
   ungroup() |>
   select(-week)
 
 last_30d_profit <- deals_data |>
   group_by(id) |>
   filter(between(closed_at, now_date - days(30), now_date)) |>
-  summarise(last_30d_profit = sum(usd_final_profit))
+  summarise(last_30d_usd_profit = sum(usd_final_profit))
 
 this_month_profit <- deals_data |>
   mutate(month = floor_date(closed_at, "month")) |>
   group_by(id, month) |>
-  summarise(this_month_profit = sum(usd_final_profit)) |>
+  summarise(this_month_usd_profit = sum(usd_final_profit)) |>
   ungroup() |>
   filter(month == max(.data$month)) |>
   select(-month)
@@ -180,9 +180,9 @@ stats_acc <- accounts |>
     overall_usd_profit_bots = as.numeric(overall_usd_profit_bots),
     active_deals_usd_profit_bots = as.numeric(active_deals_usd_profit_bots),
     today_usd_profit_bots = as.numeric(today_usd_profit_bots),
-    last_7d_profit = ifelse(is.na(last_7d_profit), 0, last_7d_profit),
-    last_30d_profit = ifelse(is.na(last_30d_profit), 0, last_30d_profit),
-    this_month_profit = ifelse(is.na(this_month_profit), 0, this_month_profit)
+    last_7d_usd_profit = ifelse(is.na(last_7d_usd_profit), 0, last_7d_usd_profit),
+    last_30d_usd_profit = ifelse(is.na(last_30d_usd_profit), 0, last_30d_usd_profit),
+    this_month_usd_profit = ifelse(is.na(this_month_usd_profit), 0, this_month_usd_profit)
   )
 
 # summary stats
@@ -207,3 +207,4 @@ write_sheet(
   link,
   "Accounts"
 )
+
