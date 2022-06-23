@@ -5,6 +5,10 @@ on:
 
 name: accounts_manually
 
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   work:
     runs-on: ${{ matrix.config.os }}
