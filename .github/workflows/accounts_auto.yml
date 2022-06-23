@@ -6,6 +6,10 @@ on:
 
 name: accounts_auto
 
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   work:
     runs-on: ${{ matrix.config.os }}
