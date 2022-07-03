@@ -16,7 +16,9 @@ Imports:
   googlesheets4 (>= 0.3.0),
   glue (>= 1.6.2),
   jsonlite (>= 1.7.2),
-  openssl (>= 1.4.4)
+  openssl (>= 1.4.4),
+  DBI (>= 1.1.1),
+  RPostgres (>= 1.4.4)
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
