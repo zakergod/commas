@@ -194,15 +194,23 @@ summary_stat <- stats_acc |>
 all_results <- summary_acc |>
   bind_cols(summary_stat) |>
   add_row(stats_acc, .before = 2) |>
-  mutate(usd_amount = round(as.numeric(usd_amount), 4),
-         btc_amount = round(as.numeric(btc_amount), 8),
-         dt_load = as_datetime(as.character(now_date)))
+  mutate(
+    usd_amount = round(as.numeric(usd_amount), 4),
+    btc_amount = round(as.numeric(btc_amount), 8),
+    dt_load = as_datetime(as.character(now_date))
+  ) |>
+  filter(!grepl("Paper", name))
 
 # write to table ----
-con <- dbConnect(RPostgres::Postgres(),
-                 dbname = name_db,
-                 host = host_db,
-                 user = user_db,
-                 password = password_db)
+if (nrow(all_results) != 0) {
+  con <- dbConnect(RPostgres::Postgres(),
+    dbname = name_db,
+    host = host_db,
+    user = user_db,
+    password = password_db
+  )
 
-dbWriteTable(con, "accounts", all_results, append = TRUE)
+  dbWriteTable(con, "accounts", all_results, append = TRUE)
+
+  dbDisconnect(con)
+}
