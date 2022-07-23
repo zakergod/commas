@@ -89,11 +89,19 @@ to_df <- \(resp, is_nested = TRUE){
 
 # get accounts items ----
 get_account_items <- \(.id, .rel_path, .method){
-  path <- glue("/ver1/accounts/{.id}/{.rel_path}")
-  resp <- get_json(path, .method)
-  result <- to_df(resp) |>
-    mutate(id = .id)
+  result <- tryCatch(
+    expr = {
+      path <- glue("/ver1/accounts/{.id}/{.rel_path}")
+      resp <- get_json(path, .method)
+      rs <- to_df(resp) |>
+        mutate(id = .id)
 
+      rs
+    },
+    error = function(e) {
+      data.frame()
+    }
+  )
   Sys.sleep(delay)
 
   result
