@@ -39,15 +39,21 @@ get_json <- \(.query, .method) {
 
   signature <- sha256(endpoint, key = secret_key)
   path <- paste0(host, endpoint)
-
-  req <- request(path) |>
-    req_method(.method) |>
-    req_headers(
-      "APIKEY" = api_key,
-      "Signature" = signature
-    ) |>
-    req_perform()
-
+  req <- tryCatch(
+    expr = {
+      rs <- request(path) |>
+        req_method(.method) |>
+        req_headers(
+          "APIKEY" = api_key,
+          "Signature" = signature
+        ) |>
+        req_perform()
+      rs
+    },
+    error = function(e) {
+      message(paste("Error:", path))
+    }
+  )
   resp <- req |>
     resp_body_json()
 
@@ -89,6 +95,7 @@ get_account_items <- \(.id, .rel_path, .method){
     mutate(id = .id)
 
   Sys.sleep(delay)
+
   result
 }
 
