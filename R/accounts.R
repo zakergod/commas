@@ -11,7 +11,7 @@ library(jsonlite)
 library(DBI)
 
 # credentals ----
-credentals <- read_json("credentals.json")
+credentals <- fromJSON(Sys.getenv("credentals"))
 name_db <- credentals[["NAME_DB"]]
 host_db <- credentals[["HOST_DB"]]
 user_db <- credentals[["USER_DB"]]
