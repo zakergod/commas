@@ -11,7 +11,7 @@ library(jsonlite)
 library(DBI)
 
 # credentals ----
-credentals <- fromJSON(Sys.getenv("credentals"))
+credentals <- read_json("credentals.json")
 name_db <- credentals[["NAME_DB"]]
 host_db <- credentals[["HOST_DB"]]
 user_db <- credentals[["USER_DB"]]
@@ -199,7 +199,8 @@ stats_acc <- accounts |>
     this_week_usd_profit = ifelse(is.na(this_week_usd_profit), 0, this_week_usd_profit),
     last_30d_usd_profit = ifelse(is.na(last_30d_usd_profit), 0, last_30d_usd_profit),
     this_month_usd_profit = ifelse(is.na(this_month_usd_profit), 0, this_month_usd_profit)
-  )
+  ) |>
+  mutate(across(.cols = is.numeric, .fns = \(x) ifelse(is.na(x), 0, x)))
 
 # summary stats
 summary_stat <- stats_acc |>
