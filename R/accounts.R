@@ -216,7 +216,7 @@ all_results <- summary_acc |>
     dt_load = as_datetime(as.character(now_date))
   ) |>
   filter(!grepl("Paper", name)) |>
-  filter(last_30d_profit != 0)
+  filter(last_30d_usd_profit != 0)
 
 # write to table ----
 if (nrow(all_results) != 0) {
