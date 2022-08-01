@@ -174,7 +174,7 @@ last_7d_profit <- deals_data |>
 last_30d_profit <- deals_data |>
   group_by(id) |>
   filter(between(closed_at, now_date - days(30), now_date)) |>
-  summarise(last_30d_usd_profit = sum(usd_final_profit))
+  summarise(last_30d_usd_profit = sum(usd_final_profit)) 
 
 this_month_profit <- deals_data |>
   mutate(month = floor_date(closed_at, "month")) |>
@@ -200,7 +200,8 @@ stats_acc <- accounts |>
     last_30d_usd_profit = ifelse(is.na(last_30d_usd_profit), 0, last_30d_usd_profit),
     this_month_usd_profit = ifelse(is.na(this_month_usd_profit), 0, this_month_usd_profit)
   ) |>
-  mutate(across(.cols = с(active_deals_count, overall_usd_profit_bots, active_deals_usd_profit_bots, today_usd_profit_bots), .fns = \(x) ifelse(is.na(x), 0, x))) 
+  filter(last_30d_usd_profit != 0) |>
+  mutate(across(.cols = is.numeric, .fns = \(x) ifelse(is.na(x), 0, x))) 
 
 # summary stats
 summary_stat <- stats_acc |>
@@ -215,8 +216,7 @@ all_results <- summary_acc |>
     btc_amount = round(as.numeric(btc_amount), 8),
     dt_load = as_datetime(as.character(now_date))
   ) |>
-  filter(!grepl("Paper", name)) |>
-  filter(last_30d_usd_profit != 0)
+  filter(!grepl("Paper", name)) 
 
 # write to table ----
 if (nrow(all_results) != 0) {
