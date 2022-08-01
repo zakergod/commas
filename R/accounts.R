@@ -200,7 +200,7 @@ stats_acc <- accounts |>
     last_30d_usd_profit = ifelse(is.na(last_30d_usd_profit), 0, last_30d_usd_profit),
     this_month_usd_profit = ifelse(is.na(this_month_usd_profit), 0, this_month_usd_profit)
   ) |>
-  mutate(across(.cols = where(is.numeric), .fns = \(x) ifelse(is.na(x), 0, x))) 
+  mutate(across(.cols = с(active_deals_count, overall_usd_profit_bots, active_deals_usd_profit_bots, today_usd_profit_bots), .fns = \(x) ifelse(is.na(x), 0, x))) 
 
 # summary stats
 summary_stat <- stats_acc |>
