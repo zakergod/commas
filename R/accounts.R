@@ -200,8 +200,7 @@ stats_acc <- accounts |>
     last_30d_usd_profit = ifelse(is.na(last_30d_usd_profit), 0, last_30d_usd_profit),
     this_month_usd_profit = ifelse(is.na(this_month_usd_profit), 0, this_month_usd_profit)
   ) |>
-  mutate(across(.cols = is.numeric, .fns = \(x) ifelse(is.na(x), 0, x))) |>
-  filter(last_30d_profit != 0)
+  mutate(across(.cols = is.numeric, .fns = \(x) ifelse(is.na(x), 0, x))) 
 
 # summary stats
 summary_stat <- stats_acc |>
@@ -216,7 +215,8 @@ all_results <- summary_acc |>
     btc_amount = round(as.numeric(btc_amount), 8),
     dt_load = as_datetime(as.character(now_date))
   ) |>
-  filter(!grepl("Paper", name))
+  filter(!grepl("Paper", name)) |>
+  filter(last_30d_profit != 0)
 
 # write to table ----
 if (nrow(all_results) != 0) {
