@@ -163,7 +163,7 @@ deals_data <- resp_deals |>
   arrange(id, desc(closed_at))
 
 last_7d_profit <- deals_data |>
-  mutate(week = floor_date(closed_at, "week") + days(1)) |>
+  mutate(week = floor_date(closed_at, "week", week_start = 1)) |>
   filter(week == max(.data$week)) |>
   filter(closed_at >= week) |>
   group_by(id, week) |>
