@@ -184,7 +184,88 @@ this_month_profit <- deals_data |>
   filter(month == max(.data$month)) |>
   select(-month)
 
+# bots
+deals_data_bots <- resp_deals |>
+  to_df() |>
+  select(account_id,bot_name, closed_at, usd_final_profit) |>
+  mutate(
+    closed_at = as_datetime(closed_at),
+    usd_final_profit = as.numeric(usd_final_profit),
+    account_id = as.character(account_id)
+  ) |>
+  rename(id = account_id) |>
+  rename(name = bot_name) |>
+  filter(!is.na(closed_at)) |>
+  arrange(id, desc(closed_at))
+
+
+accounts_usd_btc <- accounts |>
+  select(id,usd_amount,btc_amount)
+
+accounts_bots <- deals_data_bots |>
+  select(id,name) |>
+  distinct() |>
+  left_join(accounts_usd_btc, by = "id")
+  
+bots_stats_data_bots <- bots_stats_data |>
+  select(id,overall_usd_profit_bots,active_deals_usd_profit_bots)
+
+today_usd_profit_bots <-deals_data_bots |>
+  mutate(day = floor_date(closed_at, "day")) |>
+  filter(day == Sys.Date()) |>
+  filter(closed_at >= day) |>
+  group_by(name,day) |>
+  summarise(today_usd_profit_bots = sum(usd_final_profit)) |>
+  ungroup() |>
+  select(name,today_usd_profit_bots)
+  
+
+last_7d_profit_bots <- deals_data_bots |>
+  mutate(week = floor_date(closed_at, "week", week_start = 1)) |>
+  filter(week == max(.data$week)) |>
+  filter(closed_at >= week) |>
+  group_by(name, week) |>
+  summarise(this_week_usd_profit = sum(usd_final_profit)) |>
+  ungroup() |>
+  select(name,this_week_usd_profit)
+
+last_30d_profit_bots <- deals_data_bots |>
+  group_by(name) |>
+  filter(between(closed_at, now_date - days(30), now_date)) |>
+  summarise(last_30d_usd_profit = sum(usd_final_profit)) |>
+  select(name,last_30d_usd_profit)
+
+this_month_profit_bots <- deals_data_bots |>
+  mutate(month = floor_date(closed_at, "month")) |>
+  group_by(name, month) |>
+  summarise(this_month_usd_profit = sum(usd_final_profit)) |>
+  ungroup() |>
+  filter(month == max(.data$month)) |>
+  select(name,this_month_usd_profit)
+
+
 ### join all ----
+
+stats_acc_bots <- accounts_bots |>
+  left_join(trade_entities_data, by = "id") |>
+  left_join(bots_stats_data_bots, by = "id") |>
+  left_join(today_usd_profit_bots, by = "name") |>
+  left_join(last_7d_profit_bots, by = "name") |>
+  left_join(last_30d_profit_bots, by = "name") |>
+  left_join(this_month_profit_bots, by = "name") |>
+  mutate(
+    active_deals_count = as.numeric(active_deals_count),
+    overall_usd_profit_bots = as.numeric(overall_usd_profit_bots),
+    active_deals_usd_profit_bots = as.numeric(active_deals_usd_profit_bots),
+    today_usd_profit_bots = ifelse(is.na(today_usd_profit_bots), 0, today_usd_profit_bots),
+    this_week_usd_profit = ifelse(is.na(this_week_usd_profit), 0, this_week_usd_profit),
+    last_30d_usd_profit = ifelse(is.na(last_30d_usd_profit), 0, last_30d_usd_profit),
+    this_month_usd_profit = ifelse(is.na(this_month_usd_profit), 0, this_month_usd_profit)
+  ) |>
+  filter(last_30d_usd_profit != 0) |>
+  mutate(across(.cols = where(is.numeric), .fns = \(x) ifelse(is.na(x), 0, x))) 
+
+
 stats_acc <- accounts |>
   left_join(trade_entities_data, by = "id") |>
   left_join(bots_stats_data, by = "id") |>
@@ -210,6 +291,7 @@ summary_stat <- stats_acc |>
 
 all_results <- summary_acc |>
   bind_cols(summary_stat) |>
+  add_row(stats_acc_bots, .before = 2) |>
   add_row(stats_acc, .before = 2) |>
   mutate(
     usd_amount = round(as.numeric(usd_amount), 4),
