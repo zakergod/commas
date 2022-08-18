@@ -184,6 +184,14 @@ this_month_profit <- deals_data |>
   filter(month == max(.data$month)) |>
   select(-month)
 
+#deals
+all_deals <- resp_deals |>
+  to_df() |>
+  rename(finished = 'finished?') |>
+  rename(cancellable = 'cancellable?') |>
+  rename(panic_sellable = 'panic_sellable?') |>
+  filter(!is.na(closed_at)) 
+
 # bots
 deals_data_bots <- resp_deals |>
   to_df() |>
@@ -301,7 +309,7 @@ all_results <- summary_acc |>
   filter(!grepl("Paper", name)) 
 
 # write to table ----
-if (nrow(all_results) != 0) {
+
   con <- dbConnect(RPostgres::Postgres(),
     dbname = name_db,
     host = host_db,
@@ -309,7 +317,15 @@ if (nrow(all_results) != 0) {
     password = password_db
   )
 
+  dealsdf <- dbGetQuery(con, "SELECT * FROM deals")
+  finaldf <- all_deals[!(all_deals$id %in% dealsdf$id),]
+
+if (nrow(all_results) != 0) {
   dbWriteTable(con, "accounts", all_results, append = TRUE)
+}
+if (nrow(finaldf) != 0) {  
+  dbWriteTable(con, "deals", finaldf, append = TRUE)
+}
 
   dbDisconnect(con)
-}
+
